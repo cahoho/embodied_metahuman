@@ -10,8 +10,8 @@ namespace MetaHuman.Vision
         public float fovYDeg;
         public float near;
         public float far;
-        public float width;
-        public float height;
+        public int width;
+        public int height;
 
         public static CameraPose From(Camera cam)
         {

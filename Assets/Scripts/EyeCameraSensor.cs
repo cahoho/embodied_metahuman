@@ -1,8 +1,9 @@
 using System;
 using System.IO;
 using Unity.Collections;
-using UnityEngine.Rendering;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
 
 
 namespace MetaHuman.Vision
@@ -15,7 +16,7 @@ namespace MetaHuman.Vision
         [SerializeField] private RenderTexture targetTexture;
 
         [Header("配置")]
-        [SerializeField, Range(50,95)] int jptQuality = 75;
+        [SerializeField, Range(50,95)] int jpegQuality = 75;
 
         long frameID = 0;
 
@@ -28,6 +29,12 @@ namespace MetaHuman.Vision
         
         void Awake()
         {
+            if (eyeCamera == null || targetTexture == null)
+            {
+                Debug.LogError("[EyeCameraSensor] 引用缺失");
+                enabled = false;
+                return;
+            }
             eyeCamera.targetTexture = targetTexture!= null? targetTexture: null;
             Debug.Log($"[EyeCameraSensor] 就绪 {targetTexture.width}x{targetTexture.height} " +
                       $"aa={targetTexture.antiAliasing} gfx={targetTexture.graphicsFormat} " +
@@ -39,14 +46,61 @@ namespace MetaHuman.Vision
         {
             if(Input.GetKeyDown(KeyCode.Space))
             {
-                CaptureOnce(frameID++);
+                CaptureOnce(++frameID);
             }
         }
 
         public void CaptureOnce(long id)
         {
-            
+            //快照：
+            CameraPose framePose = CameraPose.From(eyeCamera);
+            //必须在发起回读之前存储好，防止后期转头等导致拿到的时机出问题
+            long captureTs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            int quality = jpegQuality;
+
+
+            // rendertexture的内容在显存里，CPU不能直接读。传统做法：
+            // 把RT设为rendertexture.active，然后用Texture2D.ReadPixels()读到CPU内存里。弊端：会阻塞GPU，导致卡顿。
+
+            // 这里采用：
+            // AsyncGPUReadback.Request()，异步读回显存数据到CPU内存里。弊端：需要等一帧才能拿到数据，不能立即使用。
+
+            // request是lambda闭包回调函数，
+            AsyncGPUReadback.Request(targetTexture, 0, TextureFormat.RGBA32, request =>
+            {
+                if (request.hasError)
+                {
+                    Debug.LogWarning($"[EyeSensor] TRANSPORT_READBACK_ERROR frame={id}");
+                    return;
+                    //核心：不重试。因为这个项目是在线感知——下一秒就有新的一帧来了，重试旧帧只会造成积压
+                }
+
+                //NativeArray：非托管内存数组
+                NativeArray<byte> rgba = request.GetData<byte>();
+
+                using NativeArray<byte> jpg = ImageConversion.EncodeNativeArrayToJPG(
+                    rgba, GraphicsFormat.R8G8B8A8_UNorm, (uint)targetTexture.width, (uint)targetTexture.height,0 ,quality
+                );
+
+
+                try
+                {
+                    string dir = CaptureDir();
+                    Directory.CreateDirectory(dir);
+                    string path = Path.Combine(dir, $"frame_{id:D6}_{captureTs}.jpg");
+                    File.WriteAllBytes(path, jpg.ToArray());
+
+                    Debug.Log($"[EyeSensor] just saved {Path.GetFileName(path)}" + $"bytes={jpg.Length} pos={framePose.position}");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[EyeSensor] failed to save frame {id}: {e.Message}");
+                }
+
+            });
         }
+
+        
 
 
     }

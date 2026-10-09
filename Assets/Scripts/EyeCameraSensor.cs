@@ -19,7 +19,14 @@ namespace MetaHuman.Vision
         [SerializeField, Range(50,95)] int jpegQuality = 75;
 
         long frameID = 0;
+        int inflight;
 
+
+
+/// <summary>
+/// 已经发起但是回调尚未完成的回读请求数。用于控制采集频率，避免堆叠过多导致卡顿
+/// </summary>
+        public int Inflight => inflight;
 
         static string CaptureDir()//savethe jpg to a location
         {
@@ -44,7 +51,7 @@ namespace MetaHuman.Vision
         }
         void Update()
         {
-            if(Input.GetKeyDown(KeyCode.Space))
+            if(Input.GetButtonDown("CapOnceKey"))
             {
                 CaptureOnce(++frameID);
             }
@@ -65,9 +72,12 @@ namespace MetaHuman.Vision
             // 这里采用：
             // AsyncGPUReadback.Request()，异步读回显存数据到CPU内存里。弊端：需要等一帧才能拿到数据，不能立即使用。
 
+
+            inflight++;
             // request是lambda闭包回调函数，
             AsyncGPUReadback.Request(targetTexture, 0, TextureFormat.RGBA32, request =>
             {
+                inflight--;
                 if (request.hasError)
                 {
                     Debug.LogWarning($"[EyeSensor] TRANSPORT_READBACK_ERROR frame={id}");

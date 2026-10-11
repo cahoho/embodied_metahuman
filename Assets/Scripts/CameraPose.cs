@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace MetaHuman.Vision
+namespace VirtualHuman.Vision
 {
     [System.Serializable]
     public struct CameraPose

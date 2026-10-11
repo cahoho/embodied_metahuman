@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 
 
-namespace MetaHuman.Vision
+namespace VirtualHuman.Vision
 {
     [DisallowMultipleComponent] // 不允许挂载多个此组件
     public sealed class EyeCameraSensor : MonoBehaviour
@@ -18,8 +18,7 @@ namespace MetaHuman.Vision
         [Header("配置")]
         [SerializeField, Range(50,95)] int jpegQuality = 75;
 
-        long frameID = 0;
-        int inflight;
+        int inflight; // 飞行中的（正在排队的）
 
 
 
@@ -31,7 +30,7 @@ namespace MetaHuman.Vision
         static string CaptureDir()//savethe jpg to a location
         {
             var root = Directory.GetParent(Application.dataPath);
-            return Path.Combine(root != null? root.FullName: Application.dataPath, "Logs", "captures");
+            return Path.Combine(root != null? root.FullName: Application.dataPath, "Logs", "perception");
         }
         
         void Awake()
@@ -48,13 +47,6 @@ namespace MetaHuman.Vision
                       $"depth={targetTexture.depth} srgb={targetTexture.sRGB} | " +
                       $"fovY={eyeCamera.fieldOfView} near={eyeCamera.nearClipPlane} " +
                       $"far={eyeCamera.farClipPlane} | 输出location: {CaptureDir()}");        
-        }
-        void Update()
-        {
-            if(Input.GetButtonDown("CapOnceKey"))
-            {
-                CaptureOnce(++frameID);
-            }
         }
 
         public void CaptureOnce(long id)

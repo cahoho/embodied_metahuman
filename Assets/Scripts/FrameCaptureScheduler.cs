@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MetaHuman.Vision
+namespace VirtualHuman.Vision
 {
     [DisallowMultipleComponent]
     public class FrameCaptureScheduler : MonoBehaviour
@@ -14,7 +14,7 @@ namespace MetaHuman.Vision
     
 
         bool isRunning = true;
-        float nextTime;
+        double nextTime;
         long frameId = 0;
 
         // debug内容：
@@ -31,24 +31,24 @@ namespace MetaHuman.Vision
             if (Input.GetButtonDown("ToggleKey"))
             {
                 isRunning = !isRunning;
-                Debug.Log($"[FrameCaptureScheduler] Toggle capture: {isRunning}");
+                // Debug.Log($"[FrameCaptureScheduler] Toggle capture: {isRunning}");
             }
-            float now = Time.unscaledTime;// unscaledDeltaTime是上一帧的时间间隔，Time.time是从游戏开始到现在的时间, Time.unscaledTime是从游戏开始到现在的时间，不受时间缩放影响
+            double now = Time.unscaledTimeAsDouble;// unscaledDeltaTime是上一帧的时间间隔，Time.time是从游戏开始到现在的时间, Time.unscaledTime是从游戏开始到现在的时间，不受时间缩放影响
             if(!isRunning) {nextTime = now; return;}// 如果不运行，重置下一次采集时间为当前时间
-            if(now < nextTime) return;// 如果当前时间还没到下一次采集
+            if(now < nextTime) return;// 如果当前时间还没到下一次采集就return，即只在需要采集的时候进行采集
 
-            float interval = 1f / captureHz;
+            double interval = 1f / captureHz;
 
-            if (now - nextTime > interval) { droppedLate++; nextTime = now + interval; }
-            else { nextTime += interval; }
+            if (now - nextTime > interval) { droppedLate++; nextTime = now + interval; }// 如果现在已经过了下一次采集时间，相当于没采集到，所以记录由于延迟而丢弃的数量，然后更新下一次采集时间
+            else { nextTime += interval; } // 否则就更新下一次采集时间
 
-            if (sensor.Inflight >= maxInflight) { droppedInflight++; return; }
+            if (sensor.Inflight >= maxInflight) { droppedInflight++; return; } // 如果排队的数量过多，就不管了，然后记录一下丢弃了几个。
 
             sensor.CaptureOnce(++frameId);
             captured++;
 
-            Debug.Log($"[FrameCaptureScheduler] Capture frame={frameId} inflight={sensor.Inflight} " +
-                      $"captured={captured} droppedLate={droppedLate} droppedInflight={droppedInflight}");
+            // Debug.Log($"[FrameCaptureScheduler] Capture frame={frameId} inflight={sensor.Inflight} " +
+            //           $"captured={captured} droppedLate={droppedLate} droppedInflight={droppedInflight}");
 
         }
 

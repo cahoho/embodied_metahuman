@@ -28,7 +28,7 @@ namespace VirtualHuman.Vision
 
         void Update()
         {
-            if (Input.GetButtonDown("ToggleKey"))
+            if (Input.GetButtonDown("ToggleKey")) // togglekey is S
             {
                 isRunning = !isRunning;
                 // Debug.Log($"[FrameCaptureScheduler] Toggle capture: {isRunning}");
